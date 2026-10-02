@@ -1,0 +1,116 @@
+# ad-compliance-cn veto list（机器可读配置）
+# 位置纪律：本文件必须放在 AI 每次生成/审查前能读到的位置（.agents/ 下），
+# 写进 README 或记忆的 veto 等于不存在。
+# 活性规则：每条的 fact_ref 必须对应 references/fact-layer.md 中
+#   status=verified 且未过期 的事实 → 条目 active（可触发 hard 拦截）
+#   fact_ref 对应 unverified/过期 → 条目 downgraded（只出提示，不 hard 拦截）
+# 初始状态（2026-10-02 交付）：事实层全 unverified，故全部条目初始为 downgraded。
+# 首用者核实事实层后，对应条目自动恢复 active。
+# 格式纪律：trigger 必须可判定（禁止"语气不当"类）；action 明确；basis 带出处。
+
+version: 0.1.0
+updated: "2026-10-02"
+facts_source: references/fact-layer.md
+
+entries:
+  - id: V-001
+    name: 绝对化用语
+    trigger: "出现 最|第一|国家级|最高级|最佳|顶级|极致|绝无仅有|万能|全网最低|NO.1|TOP1（用于商品/服务/品牌的效果或地位宣称；内部自指且有出处的例外见 review-checklist 第 1 项）"
+    action: block          # 改完前不得发布
+    severity: hard
+    fact_ref: FL-001
+    status: downgraded     # FL-001 unverified → 降级提示，核实后转 active
+
+  - id: V-002
+    name: 非医疗产品医疗化宣称
+    trigger: "非医疗/药品/器械内容出现疾病治疗功能表述（治愈|根治|降血压|抗癌|消炎|治疗 X 病）或医疗用语（处方|诊断|疗法）"
+    action: block
+    severity: hard
+    fact_ref: FL-002
+    status: downgraded
+
+  - id: V-003
+    name: 无出处数据宣称
+    trigger: "效果/地位类数字宣称（X%|X 倍|销量第一|用户数 X）且无出处（报告/调研/时间段）且未标注'内部测试+样本量'"
+    action: human_review   # 数据真实性技能无法核实 → 人确认
+    severity: risk
+    fact_ref: FL-003
+    status: downgraded
+
+  - id: V-004
+    name: 贬损竞品
+    trigger: "点名（或可识别暗示）其他经营者 + 贬损性表述（比 X 差|X 会卡顿|X 家不行）且无客观依据"
+    action: block
+    severity: hard
+    fact_ref: FL-004
+    status: downgraded
+
+  - id: V-005
+    name: 金融收益承诺
+    trigger: "金融/投资内容出现 保本|稳赚|零风险|无风险|保收益|年化 X% 保证|承诺收益"
+    action: block
+    severity: hard
+    fact_ref: FL-005
+    status: downgraded
+
+  - id: V-006
+    name: 处方药/婴配红线
+    trigger: "处方药在大众媒介的广告内容；婴配食品宣称 替代母乳|满足全部营养需要"
+    action: block
+    severity: hard
+    fact_ref: FL-006
+    status: downgraded
+
+  - id: V-007
+    name: 普通食品保健化
+    trigger: "普通食品内容出现保健功能声称（增强免疫|改善睡眠|抗氧化|降三高）或疾病预防治疗表述"
+    action: block
+    severity: hard
+    fact_ref: FL-007
+    status: downgraded
+
+  - id: V-008
+    name: 化妆品医疗化
+    trigger: "化妆品内容出现医疗作用暗示（消炎|抗敏|修复受损|治疗痘痘|医用级）或特殊功效（祛斑美白|防晒|防脱）无注册证宣称"
+    action: human_review
+    severity: risk
+    fact_ref: FL-008
+    status: downgraded
+
+  - id: V-009
+    name: 教培保证性承诺
+    trigger: "教育培训内容出现 包过|保上岸|保录取|保证升学|100% 通过|拿证保证"
+    action: block
+    severity: hard
+    fact_ref: FL-009
+    status: downgraded
+
+  - id: V-010
+    name: 诱导分享（微信生态）
+    trigger: "公众号/朋友圈内容出现 转发 X 人领取|集赞解锁|转发到 X 个群才能看"
+    action: human_review
+    severity: risk
+    fact_ref: FL-012
+    status: downgraded
+
+  - id: V-011
+    name: 医疗/健康功效暗示（小红书从严）
+    trigger: "小红书笔记出现疾病/健康功效暗示（祛痘|祛斑|改善失眠|调理 X）"
+    action: human_review
+    severity: risk
+    fact_ref: FL-011
+    status: downgraded
+
+  - id: V-012
+    name: 素材-落地页一致性（抖音电商）
+    trigger: "抖音投放素材宣称（功效/参数/价格/赠品）在商品详情页无对应内容"
+    action: human_review
+    severity: risk
+    fact_ref: FL-013
+    status: downgraded
+
+# 受监管行业闸门（不依赖单条 veto，行业级强制）
+human_gate:
+  industries_always_review: [医疗, 药品, 医疗器械, 金融, 投资, 化妆品特殊功效, 婴幼儿配方, 教育培训]
+  actions_always_review: [投放上线, 预算分配, 发布]   # 涉及花钱/发布的动作永远过人工
+  note: 技能无豁免权——任何情况不输出"虽有风险但建议照常发布"

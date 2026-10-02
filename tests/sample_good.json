@@ -1,0 +1,62 @@
+{
+  "scope": {
+    "channel_defined": true,
+    "industry_defined": true,
+    "content_type_defined": true,
+    "regulated_industry": "化妆品特殊功效",
+    "spend_or_publish_action": true
+  },
+  "fact_layer": {
+    "checked_before_review": true,
+    "facts_cited": [
+      {"ref": "FL-001", "status": "verified", "verified_on": "2026-10-02", "expiry": "2027-10-02"},
+      {"ref": "FL-003", "status": "verified", "verified_on": "2026-10-02", "expiry": "2027-10-02"},
+      {"ref": "FL-008", "status": "verified", "verified_on": "2026-10-02", "expiry": "2027-10-02"},
+      {"ref": "FL-011", "status": "unverified", "verified_on": "", "expiry": ""}
+    ],
+    "unverified_used_only_as_hints": true
+  },
+  "checklist": {
+    "items_total": 5,
+    "items_concluded": 5,
+    "na_items_with_reason": true,
+    "industry_items_executed": true,
+    "scope_declaration_present": true
+  },
+  "risk_list": [
+    {
+      "location": "本品全网销量第一，最好用的美白面霜",
+      "basis_ref": "FL-001",
+      "severity": "hard",
+      "rewrite": "删除'全网销量第一'（无出处）与'最好用'（绝对化）；如需排名宣称改为'X 平台 2026Q3 销量领先（来源：平台榜单截图+时间）'"
+    },
+    {
+      "location": "99% 用户反馈肤色提亮",
+      "basis_ref": "FL-003",
+      "severity": "risk",
+      "rewrite": "补数据来源与样本量/时间段标注，如'2026-08 内部调研（n=120）反馈肤色提亮 99%'；无数据则删除"
+    },
+    {
+      "location": "消炎舒缓，修复受损肌肤",
+      "basis_ref": "FL-008",
+      "severity": "hard",
+      "rewrite": "删除医疗词汇'消炎'；'修复受损肌肤'改为有功效评价依据的化妆品表述（如'舒缓肌肤'需对应功效评价报告）"
+    }
+  ],
+  "gate": {
+    "decision": "blocked",
+    "no_waiver_language": true,
+    "regulated_industry_reviewed": true,
+    "spend_action_reviewed": true
+  },
+  "trigger_tests": {
+    "run": true,
+    "correct": 19,
+    "hit_rate": 0.95,
+    "error_attributed": true
+  },
+  "veto": {
+    "in_config_file": true,
+    "active_entries_all_verified": true
+  }
+}

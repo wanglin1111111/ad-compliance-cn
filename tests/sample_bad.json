@@ -1,0 +1,60 @@
+{
+  "scope": {
+    "channel_defined": true,
+    "industry_defined": false,
+    "content_type_defined": false,
+    "regulated_industry": "",
+    "spend_or_publish_action": false
+  },
+  "fact_layer": {
+    "checked_before_review": false,
+    "facts_cited": [
+      {"ref": "FL-001", "status": "verified", "verified_on": "", "expiry": ""},
+      {"ref": "FL-005", "status": "unverified", "verified_on": "", "expiry": ""}
+    ],
+    "unverified_used_only_as_hints": false
+  },
+  "checklist": {
+    "items_total": 5,
+    "items_concluded": 3,
+    "na_items_with_reason": false,
+    "industry_items_executed": false,
+    "scope_declaration_present": false
+  },
+  "risk_list": [
+    {
+      "location": "全网第一、顶级品质、绝无仅有",
+      "basis_ref": "FL-001",
+      "severity": "hard",
+      "rewrite": "建议谨慎表述"
+    },
+    {
+      "location": "稳赚不赔，保本收益",
+      "basis_ref": "FL-005",
+      "severity": "hard",
+      "rewrite": "删除"
+    },
+    {
+      "location": "比竞品 A 好太多",
+      "basis_ref": "FL-099",
+      "severity": "severe",
+      "rewrite": "客观对比"
+    }
+  ],
+  "gate": {
+    "decision": "pass_with_fixes",
+    "no_waiver_language": false,
+    "regulated_industry_reviewed": false,
+    "spend_action_reviewed": false
+  },
+  "trigger_tests": {
+    "run": true,
+    "correct": 14,
+    "hit_rate": 0.7,
+    "error_attributed": false
+  },
+  "veto": {
+    "in_config_file": false,
+    "active_entries_all_verified": false
+  }
+}
