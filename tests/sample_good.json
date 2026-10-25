@@ -9,43 +9,87 @@
   "fact_layer": {
     "checked_before_review": true,
     "facts_cited": [
-      {"ref": "FL-001", "status": "verified", "verified_on": "2026-10-02", "expiry": "2027-10-02"},
-      {"ref": "FL-003", "status": "verified", "verified_on": "2026-10-02", "expiry": "2027-10-02"},
-      {"ref": "FL-008", "status": "verified", "verified_on": "2026-10-02", "expiry": "2027-10-02"},
-      {"ref": "FL-011", "status": "unverified", "verified_on": "", "expiry": ""}
-    ],
-    "unverified_used_only_as_hints": true
+      {
+        "ref": "FL-001",
+        "type": "law",
+        "status": "verified",
+        "verified_on": "2026-10-02",
+        "expiry": "2099-12-31",
+        "source_url": "https://example.invalid/fl-001"
+      },
+      {
+        "ref": "FL-003",
+        "type": "law",
+        "status": "verified",
+        "verified_on": "2026-10-02",
+        "expiry": "2099-12-31",
+        "source_url": "https://example.invalid/fl-003"
+      },
+      {
+        "ref": "FL-008",
+        "type": "law",
+        "status": "verified",
+        "verified_on": "2026-10-02",
+        "expiry": "2099-12-31",
+        "source_url": "https://example.invalid/fl-008"
+      },
+      {
+        "ref": "FL-011",
+        "type": "platform_rule",
+        "status": "unverified",
+        "verified_on": "",
+        "expiry": "",
+        "source_url": ""
+      }
+    ]
   },
   "checklist": {
-    "items_total": 5,
-    "items_concluded": 5,
-    "na_items_with_reason": true,
+    "items": [
+      {"id": "absolute_claims", "status": "risk"},
+      {"id": "efficacy_claims", "status": "risk"},
+      {"id": "data_claims", "status": "risk"},
+      {"id": "comparative_claims", "status": "clear"},
+      {"id": "inducement_promises", "status": "clear"}
+    ],
     "industry_items_executed": true,
     "scope_declaration_present": true
   },
   "risk_list": [
     {
+      "check_id": "absolute_claims",
       "location": "本品全网销量第一，最好用的美白面霜",
       "basis_ref": "FL-001",
       "severity": "hard",
       "rewrite": "删除'全网销量第一'（无出处）与'最好用'（绝对化）；如需排名宣称改为'X 平台 2026Q3 销量领先（来源：平台榜单截图+时间）'"
     },
     {
+      "check_id": "data_claims",
       "location": "99% 用户反馈肤色提亮",
       "basis_ref": "FL-003",
       "severity": "risk",
       "rewrite": "补数据来源与样本量/时间段标注，如'2026-08 内部调研（n=120）反馈肤色提亮 99%'；无数据则删除"
     },
     {
+      "check_id": "efficacy_claims",
       "location": "消炎舒缓，修复受损肌肤",
       "basis_ref": "FL-008",
       "severity": "hard",
       "rewrite": "删除医疗词汇'消炎'；'修复受损肌肤'改为有功效评价依据的化妆品表述（如'舒缓肌肤'需对应功效评价报告）"
     }
   ],
+  "hint_only": [
+    {
+      "check_id": "absolute_claims",
+      "location": "平台规则可能对'销量第一'类表述有额外限制",
+      "basis_ref": "FL-011",
+      "note": "依据待核实，仅提示；核实前不得作为正式风险条目或 hard 拦截依据"
+    }
+  ],
   "gate": {
     "decision": "blocked",
     "no_waiver_language": true,
+    "human_review_required": true,
+    "human_review_reason": "化妆品特殊功效 + 投放动作，需人工确认功效评价依据与数据出处",
     "regulated_industry_reviewed": true,
     "spend_action_reviewed": true
   },
@@ -56,7 +100,11 @@
     "error_attributed": true
   },
   "veto": {
-    "in_config_file": true,
-    "active_entries_all_verified": true
+    "config_path": ".agents/ad-compliance-cn-veto.yaml",
+    "entries": [
+      {"id": "V-001", "fact_ref": "FL-001", "status": "active"},
+      {"id": "V-003", "fact_ref": "FL-003", "status": "active"},
+      {"id": "V-011", "fact_ref": "FL-011", "status": "downgraded"}
+    ]
   }
 }

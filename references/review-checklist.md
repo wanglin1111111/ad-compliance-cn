@@ -3,6 +3,18 @@
 > 用途：第 3 步执行检查时逐项对照。每项结论三态：**有风险**（进风险清单）/ **无风险**（已查）/ **N/A**（必须写原因）。
 > 纪律：静默跳过 = 视同未查，报告不成立。
 
+执行记录里的 item id（validate.py D3 强制，必须一字不差）：
+
+| item id | 对应本文件章节 |
+|---|---|
+| `absolute_claims` | 1. 绝对化用语 |
+| `efficacy_claims` | 2. 功效宣称 |
+| `data_claims` | 3. 数据宣称 |
+| `comparative_claims` | 4. 对比宣称 |
+| `inducement_promises` | 5. 诱导与承诺 |
+
+每项 status ∈ `risk`/`clear`/`na`；`na` 必须写 `na_reason`；缺 item = D3 FAIL。
+
 ## 一、通用 5 项（所有渠道必跑）
 
 ### 1. 绝对化用语（依据 FL-001）

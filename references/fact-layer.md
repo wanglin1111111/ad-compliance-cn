@@ -35,6 +35,8 @@ verified    = 有核实日期 + 来源 URL + 核实时 expiry ≥ 今天
 unverified  = 其余一切（包括"我很确定它是对的"——没核实过就是没核实过）
 未验证事实的用法：只能出「提示级」意见（"此处可能涉及 X，依据 FL-XXX 待核实"），
 不得作为风险清单正式条目的依据，不得触发 hard 拦截。
+机器口径：unverified 可以没有日期/source_url，但只能进 hint_only；
+validate.py D4 会拒绝任何 severity 的 risk_list 引用 unverified 事实。
 ```
 
 ## 三、有效期默认规则（expiry 怎么设）
@@ -46,7 +48,11 @@ unverified  = 其余一切（包括"我很确定它是对的"——没核实过�
 | industry_clause | 12 个月 | 跟随法规 |
 | penalty_threshold | 3 个月 | 执法口径调整快于立法 |
 
-平台规则类事实**必须**设 ≤3 个月的 expiry（validate.py 拦截超期设置）。
+平台规则类事实**必须**设 ≤3 个月的 expiry。validate.py 的机器口径：
+- verified 的 `verified_on`/`expiry` 必须是合法 ISO 日期，且 `verified_on ≤ 今天 ≤ expiry`；
+- verified 必须有非空 `source_url`；
+- `platform_rule` 的 `expiry - verified_on ≤ 90 天`；
+- 同一 ref 不得重复；过期/非法日期 = D2 FAIL。
 
 ## 四、初始事实清单（2026-10-02 交付，**全部 unverified**）
 
@@ -165,9 +171,12 @@ unverified  = 其余一切（包括"我很确定它是对的"——没核实过�
 
 ```
 veto 条目（assets/ad-compliance-cn-veto.yaml）每条带 fact_ref。
-条目活性规则（validate.py 强制）：
+审查记录里的 `veto.entries` 由 validate.py 强制：
   fact_ref 对应事实 status=verified 且未过期 → 条目 active（可触发 hard 拦截）
-  fact_ref 对应事实 unverified 或已过期 → 条目 downgraded（只出提示，不 hard 拦截）
+  fact_ref 对应事实 unverified → 条目 downgraded（只出提示，不 hard 拦截）
+  active 指向 unverified/过期事实 = D7 FAIL。
+  注意：validator 校验的是审查记录里的 entries，不读 YAML 本体；
+  记录 entries 与配置文件是否一致，仍需人工对账。
   设计意图：未核实的事实不能驱动强制拦截——
   拦截错了的代价（误拦合规内容/漏放风险）都由未核实承担，
   让"核实"这件事有真实成本，而不是装饰。

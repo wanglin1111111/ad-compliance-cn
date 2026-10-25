@@ -4,87 +4,92 @@
 输入: 一次合规审查的执行记录 JSON（schema 见 tests/sample_good.json）
   {
     "scope": {
-      "channel_defined": true,        // 渠道已定（平台规则层按渠道取）
-      "industry_defined": true,       // 行业已定（决定专项清单）
-      "content_type_defined": true,   // 内容类型已定（文章/笔记/脚本/详情页/朋友圈/素材）
-      "regulated_industry": "化妆品特殊功效",  // 受监管行业名（非受监管填 null/空）
-      "spend_or_publish_action": true // 本次涉及花钱/发布动作
+      "channel_defined": true, "industry_defined": true, "content_type_defined": true,
+      "regulated_industry": "化妆品特殊功效",  // 非受监管填 null/""
+      "spend_or_publish_action": true
     },
     "fact_layer": {
-      "checked_before_review": true,  // 开审前做了新鲜度检查（强制动作）
-      "facts_cited": [                // 本次审查打算/实际引用的事实
-        {"ref": "FL-001", "status": "verified", "verified_on": "2026-10-02", "expiry": "2027-10-02"},
-        {"ref": "FL-008", "status": "verified", "verified_on": "2026-10-02", "expiry": "2027-10-02"},
-        {"ref": "FL-011", "status": "unverified", "verified_on": "", "expiry": ""}
-      ],
-      "unverified_used_only_as_hints": true  // 未验证事实只用于提示级意见
+      "checked_before_review": true,
+      "facts_cited": [{
+        "ref": "FL-001", "type": "law", "status": "verified",
+        "verified_on": "2026-10-02", "expiry": "2099-12-31",
+        "source_url": "https://example.invalid/fl-001"
+      }]
     },
     "checklist": {
-      "items_total": 5,               // 通用 5 项
-      "items_concluded": 5,           // 已出三态结论的项数（有风险/无风险/N/A）
-      "na_items_with_reason": true,   // N/A 项全部写了原因（空 N/A = 视同未查）
-      "industry_items_executed": true,    // 行业专项已执行（行业未定=false 且须报告头声明）
-      "scope_declaration_present": true   // 报告头有范围声明（行业未定时必须）
+      "items": [
+        {"id": "absolute_claims", "status": "risk"},
+        {"id": "efficacy_claims", "status": "risk"},
+        {"id": "data_claims", "status": "risk"},
+        {"id": "comparative_claims", "status": "clear"},
+        {"id": "inducement_promises", "status": "clear"}
+      ],
+      "industry_items_executed": true,
+      "scope_declaration_present": true
     },
-    "risk_list": [                    // 风险清单（提示级意见不在此列）
-      {"location": "本品全网销量第一", "basis_ref": "FL-001", "severity": "hard",
-       "rewrite": "改为'品类领先产品（来源：X 报告 2026）'或删除"},
-      {"location": "消炎舒缓，修复受损肌肤", "basis_ref": "FL-008", "severity": "risk",
-       "rewrite": "改为有功效评价依据的化妆品表述，删除医疗词汇"}
-    ],
+    "risk_list": [{
+      "check_id": "absolute_claims", "location": "本品全网销量第一",
+      "basis_ref": "FL-001", "severity": "hard", "rewrite": "删除或改为有出处的表述"
+    }],
+    "hint_only": [{
+      "check_id": "absolute_claims", "location": "平台规则可能有额外限制",
+      "basis_ref": "FL-011", "note": "依据待核实，仅提示"
+    }],
     "gate": {
-      "decision": "blocked",          // pass_with_fixes / blocked / human_review
-      "no_waiver_language": true,     // 未输出"虽有风险但建议照常发布"（技能无豁免权）
-      "regulated_industry_reviewed": true,   // 受监管行业已强制人工
-      "spend_action_reviewed": true         // 花钱/发布动作已强制人工
+      "decision": "blocked", "no_waiver_language": true,
+      "human_review_required": true,
+      "human_review_reason": "化妆品特殊功效 + 投放动作，需人工确认功效评价与数据出处",
+      "regulated_industry_reviewed": true, "spend_action_reviewed": true
     },
-    "trigger_tests": {
-      "run": true,
-      "correct": 19,                  // 20 条中正确数
-      "hit_rate": 0.95,               // ≥0.90 才可交付
-      "error_attributed": true        // 错误条已归因（漏/误 + 改法）
-    },
+    "trigger_tests": {"run": true, "correct": 19, "hit_rate": 0.95, "error_attributed": true},
     "veto": {
-      "in_config_file": true,         // veto 在机器可读配置文件（非 README/记忆）
-      "active_entries_all_verified": true  // active 条目全部对应已验证且未过期事实
+      "config_path": ".agents/ad-compliance-cn-veto.yaml",
+      "entries": [{"id": "V-001", "fact_ref": "FL-001", "status": "active"}]
     }
   }
 
 七维校验（任一 FAIL → exit 1）：
-  D1 范围: 渠道/行业/内容类型三要素全定；行业未定时 scope_declaration_present 必须
-     true（没声明就审 = 范围不透明，报告不可复验）
-  D2 事实层: checked_before_review=true；facts_cited 每条 ref 非空且
-     status ∈ {verified, unverified}；verified 条 verified_on+expiry 非空
-     （无核实日期的"verified"= 状态造假）；有 unverified 条时
-     unverified_used_only_as_hints 必须 true（未验证事实当正式依据=审查无效）
-  D3 检查清单: items_concluded == items_total（静默跳过=视同未查，报告不成立）；
-     na_items_with_reason=true；行业已定 → industry_items_executed=true；
-     行业未定 → industry_items_executed=false 且 scope_declaration_present=true
-  D4 风险清单: 每条四要素齐（location/basis_ref/severity/rewrite 非空）；
-     severity ∈ {hard, risk, advice}；basis_ref 必须在 facts_cited 里；
-     hard 条的 basis_ref 必须 status=verified 且 verified_on/expiry 非空
-     （未验证事实不得驱动 hard 拦截——拦截错了的代价由未核实承担）
-  D5 闸门: decision ∈ 三态；no_waiver_language=true（豁免话术=越权）；
-     有 hard 条 → decision 必须 blocked；受监管行业（regulated_industry 非空）
-     → regulated_industry_reviewed=true；花钱/发布动作 → spend_action_reviewed=true
-  D6 触发测试: run=true；correct ∈ [0,20] 且 hit_rate == correct/20（±0.005）
-     且 hit_rate ≥ 0.90（<90% 不许交付，回改 description）；
-     correct < 20 时 error_attributed=true（错误条要归因：漏/误+改法）
-  D7 veto: in_config_file=true（写 README/记忆 = veto 不存在）；
-     active_entries_all_verified=true（active 条目对应 unverified/过期事实 =
-     用没核实过的依据强制拦截，与 D2/D4 同纪律）；
-     一致性：facts_cited 里存在 unverified 条 而 active_entries_all_verified
-     声称全 verified → 对账失败（除非那些 unverified 条未被任何 active 条目引用，
-     记录里无法区分时按保守判定 FAIL）
+  D1 范围: 渠道/内容类型必须已定；行业已定，或行业未定但报告头声明且行业专项标记未执行。
+  D2 事实层: 开审前检查；ref 不重复、type/status 合法；verified 必须有合法 ISO
+     verified_on/expiry、source_url，且 verified_on ≤ 今天 ≤ expiry；platform_rule
+     的 expiry-verified_on ≤ 90 天。有风险/提示条目时 facts_cited 不能为空。
+  D3 检查清单: 五项通用检查（absolute_claims/efficacy_claims/data_claims/
+     comparative_claims/inducement_promises）必须齐全；每项三态（risk/clear/na），
+     na 必须写 na_reason；行业已定→专项执行，行业未定→专项未执行 + 报告头声明。
+  D4 风险清单: 每条有 check_id/location/basis_ref/severity/rewrite；check_id 对应
+     的检查项必须是 risk；依据必须是已验证且未过期事实（所有 severity，不只 hard）；
+     每个 risk 检查项至少有一条 risk 或 hint_only 条目承载。
+     hint_only 只能引用 unverified 事实，不得进入风险清单。
+  D5 闸门: decision 三态；no_waiver_language=true；有 hard → blocked；
+     受监管行业/花钱动作/声明需要人审 → human_review_reason 非空，且无 hard 时
+     decision 必须是 human_review；受监管/花钱还要有 reviewed 标记。
+  D6 触发测试: run=true；correct∈[0,20]；hit_rate 有限且 == correct/20（±0.005）；
+     ≥0.90；correct<20 时 error_attributed=true。
+  D7 veto: config_path 是 .yaml/.yml；entries 非空、id 不重复；每条 fact_ref 必须在
+     facts_cited；active 条目必须对应 verified 且未过期事实；downgraded 条目必须
+     对应 unverified 事实。
 
-退出码：0=通过 / 1=有缺陷 / 2=文件/格式错误
+退出码：0=通过 / 1=有缺陷 / 2=文件/格式/结构错误。
 """
 import json
+import math
 import sys
+from datetime import date
 
 DECISIONS = ("pass_with_fixes", "blocked", "human_review")
 SEVERITIES = ("hard", "risk", "advice")
-STATUS_OK = ("verified", "unverified")
+FACT_STATUS = ("verified", "unverified")
+FACT_TYPES = ("law", "platform_rule", "industry_clause", "penalty_threshold")
+ITEM_STATUS = ("risk", "clear", "na")
+GENERAL_ITEMS = (
+    "absolute_claims",
+    "efficacy_claims",
+    "data_claims",
+    "comparative_claims",
+    "inducement_promises",
+)
+VETO_STATUS = ("active", "downgraded")
+MAX_PLATFORM_RULE_DAYS = 90
 
 
 def fail(checks, code, msg):
@@ -99,134 +104,329 @@ def is_nonempty_str(v):
     return isinstance(v, str) and v.strip() != ""
 
 
+def parse_iso(v):
+    if not is_nonempty_str(v):
+        return None
+    try:
+        return date.fromisoformat(v)
+    except ValueError:
+        return None
+
+
+def fact_is_current(fact, today):
+    if fact.get("status") != "verified":
+        return False
+    start = parse_iso(fact.get("verified_on"))
+    end = parse_iso(fact.get("expiry"))
+    return bool(start and end and start <= today <= end)
+
+
+def schema_error(plan):
+    if not isinstance(plan, dict):
+        return "顶层必须是 JSON 对象"
+    for key in ("scope", "fact_layer", "checklist", "gate", "trigger_tests", "veto"):
+        if not isinstance(plan.get(key), dict):
+            return f"{key} 必须是对象"
+    if not isinstance(plan.get("risk_list"), list):
+        return "risk_list 必须是数组"
+    if "hint_only" in plan and not isinstance(plan["hint_only"], list):
+        return "hint_only 必须是数组"
+    if not isinstance(plan["fact_layer"].get("facts_cited"), list):
+        return "fact_layer.facts_cited 必须是数组"
+    if not isinstance(plan["checklist"].get("items"), list):
+        return "checklist.items 必须是数组"
+    if not isinstance(plan["veto"].get("entries"), list):
+        return "veto.entries 必须是数组"
+    return None
+
+
 def validate(plan):
     checks = []
+    today = date.today()
 
-    sc = plan.get("scope") or {}
-    fl = plan.get("fact_layer") or {}
-    cl = plan.get("checklist") or {}
+    sc = plan["scope"]
+    fl = plan["fact_layer"]
+    cl = plan["checklist"]
     risks = plan.get("risk_list") or []
-    gt = plan.get("gate") or {}
-    tt = plan.get("trigger_tests") or {}
-    vt = plan.get("veto") or {}
+    hints = plan.get("hint_only") or []
+    gt = plan["gate"]
+    tt = plan["trigger_tests"]
+    vt = plan["veto"]
 
-    cited = fl.get("facts_cited") or []
-    cited_by_ref = {str(f.get("ref", "")): f for f in cited if isinstance(f, dict)}
+    facts = fl.get("facts_cited") or []
+    facts_by_ref = {
+        str(f.get("ref")): f
+        for f in facts
+        if isinstance(f, dict) and is_nonempty_str(f.get("ref"))
+    }
+    items = cl.get("items")
+    item_status = {
+        str(i.get("id")): i.get("status")
+        for i in items
+        if isinstance(i, dict) and is_nonempty_str(i.get("id"))
+    } if isinstance(items, list) else {}
     industry_defined = sc.get("industry_defined") is True
     regulated = is_nonempty_str(sc.get("regulated_industry"))
-    has_hard = any(r.get("severity") == "hard" for r in risks if isinstance(r, dict))
+    spend = sc.get("spend_or_publish_action") is True
+    has_hard = any(isinstance(r, dict) and r.get("severity") == "hard" for r in risks)
 
     # D1 范围
-    if not all(sc.get(k) is True for k in ("channel_defined", "industry_defined", "content_type_defined")):
-        missing = [k for k in ("channel_defined", "industry_defined", "content_type_defined") if sc.get(k) is not True]
-        if "industry_defined" in missing and cl.get("scope_declaration_present") is not True:
-            fail(checks, "D1", f"范围缺 {missing} 且报告头无范围声明——行业未定时必须声明（没查的项≠没风险，不得报'合规'）")
-        else:
-            fail(checks, "D1", f"范围三要素缺: {missing}（渠道定平台层/行业定专项/类型定重点，缺一不开审）")
+    channel = sc.get("channel_defined") is True
+    content_type = sc.get("content_type_defined") is True
+    declared = cl.get("scope_declaration_present") is True
+    industry_run = cl.get("industry_items_executed")
+    if not channel or not content_type:
+        missing = [
+            k
+            for k, v in (("channel_defined", channel), ("content_type_defined", content_type))
+            if not v
+        ]
+        fail(checks, "D1", f"范围缺 {missing}——渠道定平台层/内容类型定检查重点，缺一不开审")
+    elif not industry_defined and not (declared and industry_run is False):
+        fail(checks, "D1", "行业未定但没有声明或没有标记行业专项未执行——没查的项≠没风险")
     else:
-        ok(checks, "D1", "范围三要素齐（渠道+行业+内容类型）")
+        ok(checks, "D1", "范围合规（渠道+内容类型已定；行业已定或已声明未定）")
 
     # D2 事实层
-    bad_facts = []
-    for f in cited:
-        if not isinstance(f, dict) or not is_nonempty_str(f.get("ref")):
-            bad_facts.append("缺 ref 的条目")
+    fact_errors = []
+    has_risks = bool(risks or hints)
+    if not facts and has_risks:
+        fact_errors.append("有风险/提示条目但 facts_cited 为空——依据不可对应")
+    seen = set()
+    for i, f in enumerate(facts, 1):
+        if not isinstance(f, dict):
+            fact_errors.append(f"#{i} 非对象")
             continue
-        if f.get("status") not in STATUS_OK:
-            bad_facts.append(f"{f.get('ref')}(状态非法)")
-        elif f.get("status") == "verified" and not (is_nonempty_str(f.get("verified_on")) and is_nonempty_str(f.get("expiry"))):
-            bad_facts.append(f"{f.get('ref')}(verified 但无核实日期/有效期=状态造假)")
-    has_unverified = any(f.get("status") == "unverified" for f in cited if isinstance(f, dict))
+        ref = f.get("ref")
+        if not is_nonempty_str(ref):
+            fact_errors.append(f"#{i} 缺 ref")
+            continue
+        if ref in seen:
+            fact_errors.append(f"{ref} 重复引用（同一 ref 只能出现一次）")
+        seen.add(ref)
+        typ = f.get("type")
+        if typ not in FACT_TYPES:
+            fact_errors.append(f"{ref} type={typ!r} 非法")
+        status = f.get("status")
+        if status not in FACT_STATUS:
+            fact_errors.append(f"{ref} status={status!r} 非法")
+            continue
+        if status != "verified":
+            continue
+        start = parse_iso(f.get("verified_on"))
+        end = parse_iso(f.get("expiry"))
+        if not start or not end:
+            fact_errors.append(f"{ref} verified 但 verified_on/expiry 不是合法 ISO 日期")
+            continue
+        if not is_nonempty_str(f.get("source_url")):
+            fact_errors.append(f"{ref} verified 但缺 source_url")
+        if start > today:
+            fact_errors.append(f"{ref} verified_on={start.isoformat()} 在未来")
+        if end < today:
+            fact_errors.append(f"{ref} 已过期（expiry={end.isoformat()}）")
+        if end < start:
+            fact_errors.append(f"{ref} expiry 早于 verified_on")
+        if typ == "platform_rule" and (end - start).days > MAX_PLATFORM_RULE_DAYS:
+            fact_errors.append(f"{ref} 平台规则 expiry 超过 {MAX_PLATFORM_RULE_DAYS} 天")
     if fl.get("checked_before_review") is not True:
-        fail(checks, "D2", "checked_before_review=false——开审前没做事实层新鲜度检查（强制动作，过期依据=审查无效）")
-    elif bad_facts:
-        fail(checks, "D2", "facts_cited 不合格: " + "；".join(bad_facts))
-    elif has_unverified and fl.get("unverified_used_only_as_hints") is not True:
-        fail(checks, "D2", "引用了未验证事实却未限提示级——未验证事实不得进风险清单正式条目/不得触发拦截"
-                           "（宁可'依据待核实'，不可拿没核实过的依据下结论）")
+        fail(checks, "D2", "checked_before_review=false——开审前没做事实层新鲜度检查")
+    elif fact_errors:
+        fail(checks, "D2", "事实层不合格: " + "；".join(fact_errors))
     else:
-        ok(checks, "D2", f"事实层合规（开审前检查过，{len(cited)} 条引用，未验证条仅限提示级）")
+        ok(checks, "D2", f"事实层合规（{len(facts)} 条引用；verified 日期/来源/时效均合法）")
 
     # D3 检查清单
-    it = cl.get("items_total")
-    ic = cl.get("items_concluded")
-    if not (isinstance(it, int) and isinstance(ic, int)) or ic != it:
-        fail(checks, "D3", f"items_concluded={ic!r} != items_total={it!r}——有检查项静默跳过（视同未查，报告不成立）")
-    elif cl.get("na_items_with_reason") is not True:
-        fail(checks, "D3", "na_items_with_reason=false——存在空 N/A（没写'查了什么、为什么不适用'=未查）")
-    elif industry_defined and cl.get("industry_items_executed") is not True:
-        fail(checks, "D3", "行业已定但行业专项未执行（专项是该行业的'不可碰'项，跳=漏审）")
-    elif not industry_defined and (cl.get("industry_items_executed") is not False or cl.get("scope_declaration_present") is not True):
-        fail(checks, "D3", "行业未定但缺'专项未执行'声明——报告头必须写明行业专项未跑，结论不得写'合规'")
+    d3_errors = []
+    if not isinstance(items, list) or not items:
+        d3_errors.append("items 不能为空")
     else:
-        ok(checks, "D3", f"检查清单合规（{ic}/{it} 项全出三态结论，N/A 带原因，专项与声明一致）")
-
-    # D4 风险清单
-    bad_risks = []
-    for i, r in enumerate(risks):
-        if not isinstance(r, dict):
-            bad_risks.append(f"#{i + 1}(非对象)")
-            continue
-        missing = [k for k in ("location", "basis_ref", "severity", "rewrite")
-                   if k in ("severity",) and r.get(k) not in SEVERITIES
-                   or k != "severity" and not is_nonempty_str(r.get(k))]
+        ids = []
+        for i, item in enumerate(items, 1):
+            if not isinstance(item, dict):
+                d3_errors.append(f"#{i} 非对象")
+                continue
+            item_id = item.get("id")
+            status = item.get("status")
+            if not is_nonempty_str(item_id):
+                d3_errors.append(f"#{i} 缺 id")
+                continue
+            if item_id in ids:
+                d3_errors.append(f"{item_id} 重复")
+            ids.append(item_id)
+            if status not in ITEM_STATUS:
+                d3_errors.append(f"{item_id} status={status!r} 非法")
+            elif status == "na" and not is_nonempty_str(item.get("na_reason")):
+                d3_errors.append(f"{item_id} 标 N/A 但没写 na_reason")
+        missing = [x for x in GENERAL_ITEMS if x not in ids]
         if missing:
-            bad_risks.append(f"#{i + 1}(缺 {missing})")
-            continue
-        if r.get("basis_ref") not in cited_by_ref:
-            bad_risks.append(f"#{i + 1}(依据 {r.get('basis_ref')} 不在 facts_cited——依据不可对应=撤销该条)")
-            continue
-        if r.get("severity") == "hard":
-            bf = cited_by_ref.get(r.get("basis_ref"), {})
-            if bf.get("status") != "verified" or not is_nonempty_str(bf.get("verified_on")) or not is_nonempty_str(bf.get("expiry")):
-                bad_risks.append(f"#{i + 1}(hard 依据 {r.get('basis_ref')} 未验证/无核实记录——未验证事实不得驱动 hard 拦截)")
-    if bad_risks:
-        fail(checks, "D4", "风险清单: " + "；".join(bad_risks))
+            d3_errors.append(f"缺通用检查项: {missing}")
+    if industry_defined:
+        if cl.get("industry_items_executed") is not True:
+            d3_errors.append("行业已定但行业专项未执行")
     else:
-        sev_n = {s: sum(1 for r in risks if r.get("severity") == s) for s in SEVERITIES}
-        ok(checks, "D4", f"风险清单合规（{len(risks)} 条，hard {sev_n['hard']}/risk {sev_n['risk']}/advice {sev_n['advice']}，四要素齐+依据可对应）")
+        if cl.get("industry_items_executed") is not False:
+            d3_errors.append("行业未定但 industry_items_executed 不是 false")
+        if not declared:
+            d3_errors.append("行业未定但缺报告头声明")
+    if d3_errors:
+        fail(checks, "D3", "检查清单: " + "；".join(d3_errors))
+    else:
+        ok(checks, "D3", f"检查清单合规（{len(items)} 项，通用 5 项齐全，三态与 N/A 原因完整）")
+
+    # D4 风险清单 + 提示级
+    d4_errors = []
+    if not isinstance(risks, list):
+        d4_errors.append("risk_list 必须是数组")
+        risks = []
+    if not isinstance(hints, list):
+        d4_errors.append("hint_only 必须是数组")
+        hints = []
+    for i, r in enumerate(risks, 1):
+        if not isinstance(r, dict):
+            d4_errors.append(f"风险#{i} 非对象")
+            continue
+        missing = [
+            k
+            for k in ("check_id", "location", "basis_ref", "severity", "rewrite")
+            if (k == "severity" and r.get(k) not in SEVERITIES)
+            or (k != "severity" and not is_nonempty_str(r.get(k)))
+        ]
+        if missing:
+            d4_errors.append(f"风险#{i} 缺/非法 {missing}")
+            continue
+        check_id = r.get("check_id")
+        if item_status.get(check_id) != "risk":
+            d4_errors.append(f"风险#{i} check_id={check_id!r} 不是 risk 检查项")
+        basis = facts_by_ref.get(str(r.get("basis_ref")))
+        if not basis:
+            d4_errors.append(f"风险#{i} 依据 {r.get('basis_ref')} 不在 facts_cited")
+        elif basis.get("status") != "verified":
+            d4_errors.append(f"风险#{i} 依据 {r.get('basis_ref')} 未验证——不得进风险清单")
+        elif not fact_is_current(basis, today):
+            d4_errors.append(f"风险#{i} 依据 {r.get('basis_ref')} 已过期/日期非法")
+    for i, h in enumerate(hints, 1):
+        if not isinstance(h, dict):
+            d4_errors.append(f"提示#{i} 非对象")
+            continue
+        missing = [
+            k
+            for k in ("check_id", "location", "basis_ref", "note")
+            if not is_nonempty_str(h.get(k))
+        ]
+        if missing:
+            d4_errors.append(f"提示#{i} 缺 {missing}")
+            continue
+        check_id = h.get("check_id")
+        if item_status.get(check_id) != "risk":
+            d4_errors.append(f"提示#{i} check_id={check_id!r} 不是 risk 检查项")
+        basis = facts_by_ref.get(str(h.get("basis_ref")))
+        if not basis:
+            d4_errors.append(f"提示#{i} 依据 {h.get('basis_ref')} 不在 facts_cited")
+        elif basis.get("status") != "unverified":
+            d4_errors.append(f"提示#{i} 的依据 {h.get('basis_ref')} 不是 unverified——已验证事实应进风险清单")
+    for check_id, status in item_status.items():
+        if status == "risk" and not any(
+            isinstance(r, dict) and r.get("check_id") == check_id for r in risks
+        ) and not any(isinstance(h, dict) and h.get("check_id") == check_id for h in hints):
+            d4_errors.append(f"检查项 {check_id} 标 risk 但既无风险条目也无提示条目")
+    if d4_errors:
+        fail(checks, "D4", "风险清单: " + "；".join(d4_errors))
+    else:
+        sev_n = {s: sum(1 for r in risks if isinstance(r, dict) and r.get("severity") == s) for s in SEVERITIES}
+        ok(
+            checks,
+            "D4",
+            f"风险清单合规（{len(risks)} 条风险 + {len(hints)} 条提示；"
+            f"hard/risk/advice={sev_n['hard']}/{sev_n['risk']}/{sev_n['advice']}；依据均可对应）",
+        )
 
     # D5 闸门
-    if gt.get("decision") not in DECISIONS:
-        fail(checks, "D5", f"decision={gt.get('decision')!r}——闸门三态之外（技能只能判到三态，发布决定归人）")
-    elif gt.get("no_waiver_language") is not True:
-        fail(checks, "D5", "no_waiver_language=false——输出了豁免话术（'虽有风险但建议照常发布'=越权，技能无豁免权）")
-    elif has_hard and gt.get("decision") != "blocked":
-        fail(checks, "D5", f"存在 hard 项但 decision={gt.get('decision')!r}——有 hard 必须 blocked（改完前不得发布）")
-    elif regulated and gt.get("regulated_industry_reviewed") is not True:
-        fail(checks, "D5", f"受监管行业（{sc.get('regulated_industry')}）未强制人工审查——医疗/金融/化妆品功效/婴配/教培永远过人审")
-    elif sc.get("spend_or_publish_action") is True and gt.get("spend_action_reviewed") is not True:
-        fail(checks, "D5", "涉及花钱/发布动作但未强制人工——投放上线/预算分配永远过人审")
+    d5_errors = []
+    decision = gt.get("decision")
+    if decision not in DECISIONS:
+        d5_errors.append(f"decision={decision!r} 不在三态")
+    if gt.get("no_waiver_language") is not True:
+        d5_errors.append("no_waiver_language=false（技能无豁免权）")
+    if has_hard and decision != "blocked":
+        d5_errors.append(f"存在 hard 但 decision={decision!r}，必须 blocked")
+    must_human = regulated or spend or gt.get("human_review_required") is True
+    if must_human:
+        if not is_nonempty_str(gt.get("human_review_reason")):
+            d5_errors.append("需要人工但缺 human_review_reason")
+        if not has_hard and decision != "human_review":
+            d5_errors.append(f"需要人工且无 hard，decision={decision!r} 必须 human_review")
+        if regulated and gt.get("regulated_industry_reviewed") is not True:
+            d5_errors.append(f"受监管行业（{sc.get('regulated_industry')}）缺 reviewed 标记")
+        if spend and gt.get("spend_action_reviewed") is not True:
+            d5_errors.append("花钱/发布动作缺 reviewed 标记")
+    elif decision == "human_review" and not is_nonempty_str(gt.get("human_review_reason")):
+        d5_errors.append("decision=human_review 但缺 human_review_reason")
+    if d5_errors:
+        fail(checks, "D5", "闸门: " + "；".join(d5_errors))
     else:
-        ok(checks, "D5", f"闸门合规（decision={gt['decision']}，无豁免话术，受监管行业与人/钱动作已强制人工）")
+        ok(checks, "D5", f"闸门合规（decision={decision}，无豁免，人审要求已落实）")
 
     # D6 触发测试
     corr = tt.get("correct")
     hr = tt.get("hit_rate")
     if tt.get("run") is not True:
-        fail(checks, "D6", "trigger_tests.run=false——description 交付前没跑 20 条口语测试（路由翻车=技能白做）")
-    elif not (isinstance(corr, int) and 0 <= corr <= 20) or not isinstance(hr, (int, float)):
-        fail(checks, "D6", f"correct={corr!r} / hit_rate={hr!r} 非法——20 条测试的计数与比率必须可核")
+        fail(checks, "D6", "trigger_tests.run=false——交付前没跑 20 条口语测试")
+    elif not isinstance(corr, int) or isinstance(corr, bool) or not 0 <= corr <= 20:
+        fail(checks, "D6", f"correct={corr!r} 非法——必须是 0-20 的整数")
+    elif not isinstance(hr, (int, float)) or isinstance(hr, bool) or not math.isfinite(hr):
+        fail(checks, "D6", f"hit_rate={hr!r} 非法——必须是有限数值")
     elif abs(hr - corr / 20) > 0.005:
-        fail(checks, "D6", f"hit_rate={hr} 与 correct={corr}/20 对不上——比率造假或算错")
+        fail(checks, "D6", f"hit_rate={hr} 与 correct={corr}/20 对不上")
     elif hr < 0.90:
-        fail(checks, "D6", f"hit_rate={hr} < 0.90——命中率不到 90% 不许交付（回改 description 后重跑）")
+        fail(checks, "D6", f"hit_rate={hr} < 0.90——命中率不到 90% 不许交付")
     elif corr < 20 and tt.get("error_attributed") is not True:
-        fail(checks, "D6", "有错误条但未归因——漏触发/误触发要分别归因（加什么触发词/加什么边界句），不归因=下次还错")
+        fail(checks, "D6", "有错误条但未归因——漏/误触发要分别归因")
     else:
-        ok(checks, "D6", f"触发测试合规（{corr}/20 = {hr}，≥90%，错误已归因）")
+        ok(checks, "D6", f"触发测试合规（{corr}/20 = {hr}，错误已归因）")
 
     # D7 veto
-    unverified_refs = {str(f.get("ref")) for f in cited if isinstance(f, dict) and f.get("status") == "unverified"}
-    if vt.get("in_config_file") is not True:
-        fail(checks, "D7", "in_config_file=false——veto 写进 README/文档/记忆 = veto 不存在（AI 每次审查前读不到）")
-    elif vt.get("active_entries_all_verified") is not True:
-        fail(checks, "D7", "active_entries_all_verified=false——存在 active 条目对应未验证/过期事实（用没核实过的依据强制拦截）")
-    elif unverified_refs and not has_unverified:
-        fail(checks, "D7", "事实对账异常——facts_cited 状态与 unverified 判定不一致")
+    d7_errors = []
+    config_path = vt.get("config_path")
+    entries = vt.get("entries")
+    if not is_nonempty_str(config_path) or not config_path.lower().endswith((".yaml", ".yml")):
+        d7_errors.append("config_path 必须是 .yaml/.yml 路径")
+    if not isinstance(entries, list) or not entries:
+        d7_errors.append("veto.entries 不能为空")
     else:
-        note = f"；{len(unverified_refs)} 条未验证事实已降级提示级" if unverified_refs else ""
-        ok(checks, "D7", f"veto 合规（机器可读配置，active 条目全对应已验证事实{note}）")
+        ids = set()
+        for i, e in enumerate(entries, 1):
+            if not isinstance(e, dict):
+                d7_errors.append(f"veto#{i} 非对象")
+                continue
+            entry_id = e.get("id")
+            fact_ref = e.get("fact_ref")
+            status = e.get("status")
+            if not is_nonempty_str(entry_id):
+                d7_errors.append(f"veto#{i} 缺 id")
+                continue
+            if entry_id in ids:
+                d7_errors.append(f"veto {entry_id} 重复")
+            ids.add(entry_id)
+            if status not in VETO_STATUS:
+                d7_errors.append(f"veto {entry_id} status={status!r} 非法")
+                continue
+            if not is_nonempty_str(fact_ref):
+                d7_errors.append(f"veto {entry_id} 缺 fact_ref")
+                continue
+            basis = facts_by_ref.get(str(fact_ref))
+            if not basis:
+                d7_errors.append(f"veto {entry_id} 的 {fact_ref} 不在 facts_cited")
+            elif status == "active":
+                if basis.get("status") != "verified":
+                    d7_errors.append(f"veto {entry_id} active 但 {fact_ref} 未验证")
+                elif not fact_is_current(basis, today):
+                    d7_errors.append(f"veto {entry_id} active 但 {fact_ref} 已过期/日期非法")
+            elif basis.get("status") != "unverified":
+                d7_errors.append(f"veto {entry_id} downgraded 但 {fact_ref} 不是 unverified")
+    if d7_errors:
+        fail(checks, "D7", "veto: " + "；".join(d7_errors))
+    else:
+        ok(checks, "D7", f"veto 合规（{len(entries)} 条；active 均对应 verified 且未过期事实）")
 
     return checks
 
@@ -241,11 +441,15 @@ def main():
     except (OSError, json.JSONDecodeError) as e:
         print(f"ERROR: 无法读取/解析: {e}", file=sys.stderr)
         return 2
-    if not isinstance(plan, dict):
-        print("ERROR: 顶层必须是 JSON 对象", file=sys.stderr)
+    error = schema_error(plan)
+    if error:
+        print(f"ERROR: 记录结构非法: {error}", file=sys.stderr)
         return 2
-
-    checks = validate(plan)
+    try:
+        checks = validate(plan)
+    except (AttributeError, TypeError, ValueError) as e:
+        print(f"ERROR: 记录结构非法: {e}", file=sys.stderr)
+        return 2
     fails = [c for c in checks if c[0] == "FAIL"]
     for status, code, msg in checks:
         if status == "FAIL":

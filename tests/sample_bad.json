@@ -9,41 +9,62 @@
   "fact_layer": {
     "checked_before_review": false,
     "facts_cited": [
-      {"ref": "FL-001", "status": "verified", "verified_on": "", "expiry": ""},
-      {"ref": "FL-005", "status": "unverified", "verified_on": "", "expiry": ""}
-    ],
-    "unverified_used_only_as_hints": false
+      {
+        "ref": "FL-001",
+        "type": "law",
+        "status": "verified",
+        "verified_on": "",
+        "expiry": "",
+        "source_url": ""
+      },
+      {
+        "ref": "FL-005",
+        "type": "law",
+        "status": "unverified",
+        "verified_on": "",
+        "expiry": "",
+        "source_url": ""
+      }
+    ]
   },
   "checklist": {
-    "items_total": 5,
-    "items_concluded": 3,
-    "na_items_with_reason": false,
+    "items": [
+      {"id": "absolute_claims", "status": "risk"},
+      {"id": "efficacy_claims", "status": "na", "na_reason": ""},
+      {"id": "data_claims", "status": "clear"}
+    ],
     "industry_items_executed": false,
     "scope_declaration_present": false
   },
   "risk_list": [
     {
+      "check_id": "absolute_claims",
       "location": "全网第一、顶级品质、绝无仅有",
       "basis_ref": "FL-001",
       "severity": "hard",
       "rewrite": "建议谨慎表述"
     },
     {
+      "check_id": "data_claims",
       "location": "稳赚不赔，保本收益",
       "basis_ref": "FL-005",
       "severity": "hard",
       "rewrite": "删除"
     },
     {
+      "check_id": "efficacy_claims",
       "location": "比竞品 A 好太多",
       "basis_ref": "FL-099",
       "severity": "severe",
       "rewrite": "客观对比"
     }
   ],
+  "hint_only": [],
   "gate": {
     "decision": "pass_with_fixes",
     "no_waiver_language": false,
+    "human_review_required": false,
+    "human_review_reason": "",
     "regulated_industry_reviewed": false,
     "spend_action_reviewed": false
   },
@@ -54,7 +75,7 @@
     "error_attributed": false
   },
   "veto": {
-    "in_config_file": false,
-    "active_entries_all_verified": false
+    "config_path": "",
+    "entries": []
   }
 }
